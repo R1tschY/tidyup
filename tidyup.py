@@ -60,6 +60,7 @@ def check_pattern(filename):
 def process_file(path, filename):
   global tmpdir
   global root_path
+  global options
   
   file_path = os.path.join(path, filename)
   rel_path = os.path.relpath(path, root_path)
@@ -70,24 +71,30 @@ def process_file(path, filename):
     os.makedirs(dest_dir)
   
   print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> remove')
-  shutil.move(file_path, dest_path)  
+  if options.no_backup:
+    if os.path.isdir(file_path):
+      shutil.rmtree(file_path)
+    else:
+      os.remove(file_path)
+  else:
+    shutil.move(file_path, dest_path)  
   
 def process_path(path, files):
   global root_path
+  global options
   rel_path = os.path.relpath(path, root_path)
 
-  if 'Makefile' in files:
+  if not options.no_makefiles and 'Makefile' in files:
     os.chdir(path)
-    null = open('/dev/null', 'w')
     
     # Check for automake
     if 'configure' in files:
       print(rel_path + ' -> make distclean')
-      subprocess.call(['make', 'distclean'], stdout=null, stdin=null)
+      subprocess.call(['make', 'distclean'], stdout=os.devnull, stdin=os.devnull)
     # Check for Makefile
     else:
       print(rel_path + ' -> make clean')
-      subprocess.call(['make', 'clean'], stdout=null, stdin=null)
+      subprocess.call(['make', 'clean'], stdout=os.devnull, stdin=os.devnull)
       
     files = os.listdir(path)
   
@@ -106,10 +113,21 @@ parser.add_argument("-p", "--pattern",
                     help='slash separated list of search pattern for files to remove (You can use shell wildcards: e.x. *.bak/*~)',
                     metavar="<pattern>",
                     default='')
-parser.add_argument("-n", "--no-config",
+parser.add_argument("--no-config",
                     action="store_true",
                     help='Don\'t use .tidyup file to read search pattern',
                     default=False)
+parser.add_argument("--no-backup",
+                    action="store_true",
+                    help='Don\'t create a backup archive',
+                    default=False)
+parser.add_argument("--no-makefiles",
+                    action="store_true",
+                    help='Don\'t look for Makefiles to use to clean up',
+                    default=False)
+parser.add_argument("-b", "--backup", metavar='path', nargs='?',
+                    help='Backup filename without file extention (default: tidyup.backup)',
+                    default='tidyup.backup')
 
 options = parser.parse_args()
 
@@ -134,10 +152,14 @@ if len(options.pattern) != 0:
 
 patterns = unique(patterns)
 
+if len(patterns) == 0:
+  print("No patterns to use")
+  sys.exit()
+
 # Create path variables
 tmpdir_root = mkdtemp(prefix='tidyup')
 tmpdir = os.path.join(tmpdir_root, os.path.basename(root_path))
-archive_name = os.path.join(root_path, 'tidyup.backup')
+archive_name = options.backup
 archive_path = archive_name + '.tar.gz'
 
 # Merge with old backup files
@@ -148,7 +170,7 @@ if os.path.isfile(archive_path):
 walk_path(root_path, process_path)  
 
 # Pack backup
-if os.path.isdir(tmpdir):
+if os.path.isdir(tmpdir) and not options.no_backup:
   archive_path = shutil.make_archive(archive_name, 'gztar', tmpdir_root, os.path.basename(root_path))
 
 # Remove tmpdir
