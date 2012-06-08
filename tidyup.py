@@ -70,14 +70,15 @@ def process_file(path, filename):
   if not os.path.isdir(dest_dir): 
     os.makedirs(dest_dir)
   
-  print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> remove')
   if options.no_backup:
+    print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> remove')
     if os.path.isdir(file_path):
       shutil.rmtree(file_path)
     else:
       os.remove(file_path)
   else:
-    shutil.move(file_path, dest_path)  
+    print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> move to backup archive')
+    shutil.move(file_path, dest_path) 
   
 def process_path(path, files):
   global root_path
