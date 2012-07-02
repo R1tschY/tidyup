@@ -68,19 +68,21 @@ def process_file(path, filename):
   dest_path = os.path.join(tmpdir, rel_path, filename)
   dest_dir = os.path.join(tmpdir, rel_path)
   
-  if not os.path.isdir(dest_dir): 
+  if not os.path.isdir(dest_dir) and not options.dry_run: 
     os.makedirs(dest_dir)
   
   if options.no_backup:
     print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> remove')
+    if options.dry_run: return
     if os.path.isdir(file_path):
       shutil.rmtree(file_path)
     else:
       os.remove(file_path)
   else:
     if not os.path.isdir(dest_path):
-      shutil.move(file_path, dest_path)
       print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> move to backup archive')
+      if not options.dry_run:
+        shutil.move(file_path, dest_path)      
     else:
       print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> ignored, see TODO in README')
   
@@ -134,6 +136,10 @@ parser.add_argument("-p", "--pattern",
                     help='slash separated list of search pattern for files to remove (You can use shell wildcards: e.x. *.bak/*~)',
                     metavar="<pattern>",
                     default='')
+parser.add_argument("-n", "--dry-run",
+                    action="store_true",
+                    help='perform a trial run with no changes made',
+                    default=False)                   
 parser.add_argument("--no-config",
                     action="store_true",
                     help='Don\'t use .tidyup file to read search pattern',
@@ -188,11 +194,13 @@ archive_name = options.backup
 archive_path = archive_name + '.tar.gz'
 
 # Merge with old backup files
-if os.path.isfile(archive_path):
+if os.path.isfile(archive_path) and not options.dry_run:
   shutil.unpack_archive(archive_path, tmpdir_root, 'gztar')
   
 # Process files
-walk_path(root_path, process_path, post_process_path)  
+walk_path(root_path, process_path, post_process_path)
+
+if options.dry_run: sys.exit(0)
 
 # Pack backup
 if os.path.isdir(tmpdir) and not options.no_backup:
