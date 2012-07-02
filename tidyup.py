@@ -97,11 +97,18 @@ def process_path(path, files):
     # Check for automake
     if 'configure' in files:
       print(rel_path + ' -> make distclean')
-      subprocess.call(['make', 'distclean'], stdout=os.devnull, stdin=os.devnull)
+      if options.dry_run: return
+      
+      null = open('/dev/null', 'r+')
+      subprocess.call(['make', 'distclean'], stdout=null, stdin=null)
+      null.close()
     # Check for Makefile
     else:
       print(rel_path + ' -> make clean')
-      subprocess.call(['make', 'clean'], stdout=os.devnull, stdin=os.devnull)
+      if options.dry_run: return
+      null = open('/dev/null', 'r+')
+      subprocess.call(['make', 'clean'], stdout=null, stdin=null)
+      null.close()
       
     files = os.listdir(path)
     
@@ -175,7 +182,7 @@ if not options.no_config:
   if os.path.isfile(configfile):
     for line in open(configfile, 'r'):
       l = line.strip()
-      if l[0] != '#':
+      if len(l) > 0 and l[0] != '#':
         patterns.append(l)
         
 if len(options.pattern) != 0:
@@ -190,7 +197,7 @@ if len(patterns) == 0:
 # Create path variables
 tmpdir_root = mkdtemp(prefix='tidyup')
 tmpdir = os.path.join(tmpdir_root, os.path.basename(root_path))
-archive_name = options.backup
+archive_name = os.path.realpath(options.backup)
 archive_path = archive_name + '.tar.gz'
 
 # Merge with old backup files
@@ -204,6 +211,7 @@ if options.dry_run: sys.exit(0)
 
 # Pack backup
 if os.path.isdir(tmpdir) and not options.no_backup:
+  print(os.path.normpath('pack archive to ' + archive_path))
   archive_path = shutil.make_archive(archive_name, 'gztar', tmpdir_root, os.path.basename(root_path))
 
 # Remove tmpdir
