@@ -41,15 +41,16 @@ def unique(seq, idfun=None):
     
   return result
 
-
-def walk_path(path, func):
+def walk_path(path, func, post_func):
   contents = os.listdir(path)
   if not func(path, contents): return
   
   for filename in contents:
     cpath = os.path.join(path, filename)
     if os.path.isdir(cpath):
-      walk_path(cpath, func)
+      walk_path(cpath, func, post_func)
+      
+  post_func(path, os.listdir(path))
       
 def check_pattern(filename):
   global patterns
@@ -77,15 +78,18 @@ def process_file(path, filename):
     else:
       os.remove(file_path)
   else:
-    print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> move to backup archive')
-    shutil.move(file_path, dest_path) 
+    if not os.path.isdir(dest_path):
+      shutil.move(file_path, dest_path)
+      print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> move to backup archive')
+    else:
+      print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> ignored, see TODO in README')
   
 def process_path(path, files):
   global root_path
   global options
-  rel_path = os.path.relpath(path, root_path)
 
-  if not options.no_makefiles and 'Makefile' in files:
+  if not options.ignore_makefiles and 'Makefile' in files:
+    rel_path = os.path.relpath(path, root_path)
     os.chdir(path)
     
     # Check for automake
@@ -98,6 +102,11 @@ def process_path(path, files):
       subprocess.call(['make', 'clean'], stdout=os.devnull, stdin=os.devnull)
       
     files = os.listdir(path)
+    
+  # Check for empty directory
+  if not options.ignore_empty_folders and len(files) == 0:
+    process_file(os.path.dirname(path), os.path.basename(path))
+    return False
   
   # Check for Pattern
   for f in files:
@@ -105,6 +114,17 @@ def process_path(path, files):
       process_file(path, f)
 
   return True
+  
+def post_process_path(path, files):
+  global root_path
+  global options
+    
+  # Check for empty directory
+  if not options.ignore_empty_folders and len(files) == 0:
+    process_file(os.path.dirname(path), os.path.basename(path))
+    
+    
+    
   
 parser = argparse.ArgumentParser(usage='%(prog)s [options] [PATH]')
 parser.add_argument("path", metavar='PATH', nargs='?',
@@ -122,10 +142,14 @@ parser.add_argument("--no-backup",
                     action="store_true",
                     help='Don\'t create a backup archive',
                     default=False)
-parser.add_argument("--no-makefiles",
+parser.add_argument("--ignore-makefiles",
                     action="store_true",
-                    help='Don\'t look for Makefiles to use to clean up',
+                    help='Don\'t use Makefiles to clean up',
                     default=False)
+parser.add_argument("--ignore-empty-folders",
+                    action="store_true",
+                    help='Don\'t process empty folders',
+                    default=False)                    
 parser.add_argument("-b", "--backup", metavar='path', nargs='?',
                     help='Backup filename without file extention (default: tidyup.backup)',
                     default='tidyup.backup')
@@ -168,7 +192,7 @@ if os.path.isfile(archive_path):
   shutil.unpack_archive(archive_path, tmpdir_root, 'gztar')
   
 # Process files
-walk_path(root_path, process_path)  
+walk_path(root_path, process_path, post_process_path)  
 
 # Pack backup
 if os.path.isdir(tmpdir) and not options.no_backup:

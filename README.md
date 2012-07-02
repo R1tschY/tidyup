@@ -36,4 +36,9 @@ Extract JPEG images and save to ~/images.tar.gz:
 Remove common backup files without moving to a backup archive:
 
     tidyup.py --no-backup --pattern *~/*.bak
+    
+TODO
+----
+
+ - Merge folder from backup with new one, if it exits already in the backup
   
