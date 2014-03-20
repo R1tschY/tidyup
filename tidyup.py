@@ -67,12 +67,13 @@ def process_file(path, filename):
   rel_path = os.path.relpath(path, root_path)
   dest_path = os.path.join(tmpdir, rel_path, filename)
   dest_dir = os.path.join(tmpdir, rel_path)
+  display_path = os.path.normpath(os.path.join(rel_path, filename))
   
   if not os.path.isdir(dest_dir) and not options.dry_run: 
     os.makedirs(dest_dir)
   
   if options.no_backup:
-    print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> remove')
+    print(display_path + ' -> remove')
     if options.dry_run: return
     if os.path.isdir(file_path):
       shutil.rmtree(file_path)
@@ -80,11 +81,11 @@ def process_file(path, filename):
       os.remove(file_path)
   else:
     if not os.path.isdir(dest_path):
-      print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> move to backup archive')
+      print(display_path + ' -> move to backup archive')
       if not options.dry_run:
         shutil.move(file_path, dest_path)      
     else:
-      print(os.path.normpath(os.path.join(rel_path, filename)) + ' -> ignored, see TODO in README')
+      print(display_path + ' -> ignored, see TODO in README')
   
 def process_path(path, files):
   global root_path
