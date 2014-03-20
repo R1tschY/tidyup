@@ -174,7 +174,7 @@ if not os.path.isdir(options.path):
   print('path ' + options.path + ' does not exist')
   sys.exit() 
 else:
-  root_path = options.path
+  root_path = os.path.abspath(options.path)
 
 patterns = []
 if not options.no_config:
